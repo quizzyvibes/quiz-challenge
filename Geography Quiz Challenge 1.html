@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuizzyVibes Geography Challenge</title>
+    <!-- Anime.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <!-- SheetJS (xlsx.js) CDN - NO LONGER NEEDED as data is embedded -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script> -->
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Bungee&family=Fredoka+One&display=swap');
+
+        :root {
+            --primary-color: #ff69b4; /* Hot Pink */
+            --secondary-color: #8a2be2; /* Blue Violet */
+            --accent-color: #00ffff; /* Aqua */
+            --bg-color: #1a1a2e; /* Dark Navy Blue */
+            --text-color: #e0e0e0;
+            --text-dark: #333;
+            --correct-color: #4caf50;
+            --incorrect-color: #f44336;
+            --card-bg: rgba(40, 40, 70, 0.85);
+            --font-main: 'Poppins', sans-serif;
+            /* --font-title: 'Press Start 2P', cursive; /* Old pixel font */
+            --font-title: 'Bungee', cursive; /* New, more playful title font */
+            /* Alternative: --font-title: 'Fredoka One', cursive; */
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%233a3a5e' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .app-container {
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 800px;
+            backdrop-filter: blur(5px);
+        }
+
+        .screen {
+            display: none; /* Initially hidden */
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        h1, h2.quiz-screen-title { /* Target quiz screen title specifically if needed */
+            font-family: var(--font-title);
+            color: var(--accent-color);
+            text-align: center;
+            text-shadow: 2px 2px 0px var(--secondary-color), 4px 4px 0px rgba(0,0,0,0.2); /* More impactful shadow */
+            letter-spacing: 1px;
+        }
+        h1 { font-size: 2rem; margin-bottom: 25px; line-height: 1.3; } /* Adjusted for new font */
+        h2.quiz-screen-title { font-size: 1.6rem; margin-bottom: 20px;} /* For titles within quiz screen if any */
+
+
+        label {
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        input[type="number"],
+        select { /* Select is no longer used for subject, but keeping style for future */
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 2px solid var(--secondary-color);
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--text-color);
+            font-size: 1rem;
+        }
+
+        input[type="radio"] {
+            margin-right: 5px;
+        }
+        .radio-group label {
+            display: inline-block;
+            margin-right: 15px;
+            color: var(--text-color);
+            font-weight: normal;
+        }
+
+        button {
+            background-image: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            font-family: var(--font-main); /* Ensure buttons use main font */
+        }
+        button.title-font-button { /* For main start button if desired */
+             font-family: var(--font-title);
+             font-size: 1.2rem;
+             padding: 15px 30px;
+        }
+
+
+        button:hover:not(:disabled) {
+            transform: translateY(-2px) scale(1.05);
+            box-shadow: 0 6px 20px rgba(var(--primary-color-rgb, 255,105,180), 0.5);
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        /* Quiz Screen Specifics */
+        #quiz-screen .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        #overallProgressBarContainer {
+            width: 100%;
+            height: 10px;
+            background-color: rgba(255,255,255,0.2);
+            border-radius: 5px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        #overallProgressBar {
+            width: 0%;
+            height: 100%;
+            background-color: var(--accent-color);
+            border-radius: 5px;
+            transition: width 0.5s ease-in-out;
+        }
+
+        #questionTimerDisplay {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            text-align: center;
+            margin: 10px 0 20px;
+            font-family: var(--font-title); /* Using title font for timer */
+        }
+
+        #questionText { /* This is the actual question text */
+            font-size: 1.3rem; /* Keep Poppins for readability */
+            font-family: var(--font-main);
+            min-height: 60px;
+            text-align: center;
+            line-height: 1.5;
+            color: white; 
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5); /* Softer shadow for readability */
+            margin-bottom: 25px;
+        }
+
+        #optionsContainer {
+            display: grid;
+            grid-template-columns: 1fr; /* Default for up to 2 options */
+            gap: 10px;
+        }
+        /* For 3 or 4 options, you might want 2 columns on wider screens */
+        @media (min-width: 600px) {
+            #optionsContainer.four-options { /* Add this class if you have 4 options */
+                 grid-template-columns: 1fr 1fr;
+            }
+        }
+
+
+        .option-button {
+            background: rgba(255,255,255,0.15);
+            border: 2px solid var(--secondary-color);
+            color: var(--text-color);
+            padding: 15px;
+            text-align: left;
+            border-radius: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            transition: background-color 0.3s, transform 0.2s;
+            font-size: 1rem;
+        }
+
+        .option-button:not(:disabled):hover {
+            background-color: rgba(var(--primary-color-rgb, 255,105,180), 0.3);
+            transform: translateX(5px);
+        }
+        
+        .option-button.selected {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 10px var(--accent-color);
+        }
+        .option-button.correct {
+            background-color: var(--correct-color) !important;
+            color: white !important;
+            border-color: darken(var(--correct-color), 10%) !important;
+        }
+        .option-button.incorrect {
+            background-color: var(--incorrect-color) !important;
+            color: white !important;
+            border-color: darken(var(--incorrect-color), 10%) !important;
+        }
+        .option-button:disabled { /* After answer */
+            opacity: 0.7;
+            cursor: default;
+        }
+
+
+        #feedbackMessage {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            min-height: 30px;
+        }
+
+        #nextQuestionButton {
+            display: block;
+            margin: 20px auto 0;
+        }
+        
+        /* Results Screen */
+        #results-screen p {
+            font-size: 1.2rem;
+            margin: 10px 0;
+            text-align: center;
+        }
+        #results-screen span {
+            color: var(--accent-color);
+            font-weight: bold;
+        }
+        .results-buttons {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 30px;
+        }
+        
+        /* Utility */
+        .hidden {
+            display: none !important;
+        }
+        .visually-hidden { /* For elements that should be hidden but accessible */
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            margin: -1px;
+            padding: 0;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+        #unseenQuestionInfo {
+            font-size: 0.9em;
+            color: var(--accent-color);
+            text-align: center;
+            margin-top: 10px;
+            min-height: 1.2em;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Welcome Screen -->
+        <div id="welcome-screen" class="screen active">
+            <h1>QuizzyVibes Geography Challenge</h1>
+            
+            <!-- File Uploader Removed -->
+            <!-- <label for="excelFileUploader" class="visually-hidden">Load Quiz Questions (Excel .xlsx):</label>
+            <input type="file" id="excelFileUploader" accept=".xlsx" class="visually-hidden">
+            <p class="file-status visually-hidden" id="fileStatus">No file loaded.</p> -->
+
+            <!-- Subject Selector Removed -->
+            <!-- <label for="subjectSelector" class="visually-hidden">Choose Subject:</label>
+            <select id="subjectSelector" disabled class="visually-hidden">
+                <option value="">-- Load Questions First --</option>
+            </select> -->
+            <p id="unseenQuestionInfo"></p>
+
+            <label>Time per Question:</label>
+            <div class="radio-group">
+                <label><input type="radio" name="timeDuration" value="3000"> 3 Sec</label>
+                <label><input type="radio" name="timeDuration" value="5000" checked> 5 Sec</label>
+                <label><input type="radio" name="timeDuration" value="7000"> 7 Sec</label>
+            </div>
+
+            <label for="numQuestions">Number of Questions (max <span id="maxQuestionsAvailable">120</span>):</label>
+            <input type="number" id="numQuestions" value="10" min="1" max="120">
+
+            <label for="pointsPerQuestion">Points per Question:</label>
+            <input type="number" id="pointsPerQuestion" value="10" min="1">
+
+            <button id="startQuizButton" class="title-font-button">Start Challenge!</button>
+            <button id="resetSeenButton" class="hidden" style="margin-top:10px; background-image: linear-gradient(to right, #ffA500, #ff7f50); font-size:0.9rem; padding: 8px 15px;">Reset Seen Questions</button>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div id="quiz-screen" class="screen">
+            <div class="quiz-header">
+                <span id="scoreDisplay">Score: 0</span>
+                <span id="questionProgressDisplay">Q: 1/10</span>
+            </div>
+            <div id="overallProgressBarContainer">
+                <div id="overallProgressBar"></div>
+            </div>
+
+            <div id="questionTimerDisplay">00:05</div>
+            <h2 id="questionText" class="quiz-question-text">Question will appear here...</h2> <!-- Added a class for potential specific styling -->
+            
+            <div id="optionsContainer">
+                <!-- Options will be dynamically inserted here -->
+            </div>
+
+            <p id="feedbackMessage"></p>
+            <button id="nextQuestionButton" class="hidden">Next Question</button>
+        </div>
+
+        <!-- Results Screen -->
+        <div id="results-screen" class="screen">
+            <h1 id="resultsTitle">Quiz Complete!</h1>
+            <p>Your Score: <span id="finalScoreDisplay">0</span></p>
+            <p>Total Possible: <span id="totalPossibleScoreDisplay">0</span></p>
+            <p>Accuracy: <span id="accuracyDisplay">0%</span></p>
+            <p>Correct: <span id="correctAnswersDisplay">0</span> / <span id="totalQuestionsInQuizDisplay">0</span></p>
+            
+            <div class="results-buttons">
+                <button id="playAgainButton">Play Again</button>
+                <button id="changeSettingsButton">New Quiz Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Preloaded Quiz Data ---
+        const preloadedQuizData = [
+            { id: "geo_1", question: "Which river forms a significant part of US-Mexico border?", options: ["Colorado River", "Mississippi River", "Rio Grande", "Missouri River"], answer: "Rio Grande", subject: "Geography" },
+            { id: "geo_2", question: "Which large sea is located north of the country Turkey?", options: ["Mediterranean Sea", "Aegean Sea", "Red Sea", "Black Sea"], answer: "Black Sea", subject: "Geography" },
+            { id: "geo_3", question: "Which large African lake borders Uganda, Kenya & Tanzania?", options: ["Lake Tanganyika", "Lake Victoria", "Lake Malawi", "Lake Turkana"], answer: "Lake Victoria", subject: "Geography" },
+            { id: "geo_4", question: "What is the longest river entirely within Switzerland?", options: ["The Aare", "The Rhone", "The Rhine", "The Inn"], answer: "The Aare", subject: "Geography" },
+            { id: "geo_5", question: "What large, flat, treeless region is found in Arctic area?", options: ["Steppe", "Savanna", "Prairie", "Tundra"], answer: "Tundra", subject: "Geography" },
+            { id: "geo_6", question: "What term describes a narrow strip connecting two lands?", options: ["Peninsula", "Isthmus", "Archipelago", "Headland"], answer: "Isthmus", subject: "Geography" },
+            { id: "geo_7", question: "Which large island lies directly south of mainland India?", options: ["Sri Lanka", "Madagascar", "Borneo", "Sumatra"], answer: "Sri Lanka", subject: "Geography" },
+            { id: "geo_8", question: "What type of landform is the Okavango Delta in Botswana?", options: ["Inland delta", "Coastal delta", "Alluvial fan", "River estuary"], answer: "Inland delta", subject: "Geography" },
+            { id: "geo_9", question: "What is the highest mountain range located entirely Europe?", options: ["Pyrenees", "Carpathian Mts", "The Alps", "Apennines"], answer: "The Alps", subject: "Geography" },
+            { id: "geo_10", question: "Which strait connects the Black Sea to the Sea of Marmara?", options: ["Strait of Gibraltar", "Dardanelles", "Bosporus Strait", "Kerch Strait"], answer: "Bosporus Strait", subject: "Geography" },
+            { id: "geo_11", question: "Which mountain range runs along South America's west edge?", options: ["Rocky Mountains", "Andes Mountains", "Appalachian Mts", "Atlas Mountains"], answer: "Andes Mountains", subject: "Geography" },
+            { id: "geo_12", question: "What is the largest island located in the Mediterranean?", options: ["Crete", "Sicily", "Cyprus", "Sardinia"], answer: "Sicily", subject: "Geography" },
+            { id: "geo_13", question: "What large peninsula lies east of the Black Sea region?", options: ["Balkan Peninsula", "Italian Peninsula", "Anatolian Peninsula", "Iberian Peninsula"], answer: "Anatolian Peninsula", subject: "Geography" },
+            { id: "geo_14", question: "Which Italian island lies west of the mainland peninsula?", options: ["Sicily", "Capri", "Elba", "Sardinia"], answer: "Sardinia", subject: "Geography" },
+            { id: "geo_15", question: "Which strait connects the Atlantic Ocean & Mediterranean?", options: ["Strait of Gibraltar", "Strait of Hormuz", "Bosporus Strait", "Strait of Malacca"], answer: "Strait of Gibraltar", subject: "Geography" },
+            { id: "geo_16", question: "What is the highest mountain peak located in Africa?", options: ["Mount Kilimanjaro", "Mount Kenya", "Mount Stanley", "Mount Meru"], answer: "Mount Kilimanjaro", subject: "Geography" },
+            { id: "geo_17", question: "Which ocean current brings warmer water to Western Europe?", options: ["Canary Current", "Gulf Stream", "Labrador Current", "Benguela Current"], answer: "Gulf Stream", subject: "Geography" },
+            { id: "geo_18", question: "Which ocean lies directly between Africa and Australia?", options: ["Pacific Ocean", "Atlantic Ocean", "Indian Ocean", "Southern Ocean"], answer: "Indian Ocean", subject: "Geography" },
+            { id: "geo_19", question: "What term describes the movement of weathered rock/soil?", options: ["Weathering", "Compaction", "Cementation", "Erosion"], answer: "Erosion", subject: "Geography" },
+            { id: "geo_20", question: "What deep valley with steep sides is carved by a river?", options: ["Gully", "Arroyo", "Canyon", "Ravine"], answer: "Canyon", subject: "Geography" },
+            { id: "geo_21", question: "Which ocean surrounds the islands known as the Maldives?", options: ["Indian Ocean", "Pacific Ocean", "Atlantic Ocean", "Southern Ocean"], answer: "Indian Ocean", subject: "Geography" },
+            { id: "geo_22", question: "Which desert is primarily located within the country Chile?", options: ["Patagonian Desert", "Sechura Desert", "Monte Desert", "Atacama Desert"], answer: "Atacama Desert", subject: "Geography" },
+            { id: "geo_23", question: "What is the largest country located entirely in Europe?", options: ["Germany", "France", "Ukraine", "Spain"], answer: "Ukraine", subject: "Geography" },
+            { id: "geo_24", question: "What flat-topped underwater mountain feature is known as?", options: ["Seamount", "Guyot", "Abyssal hill", "Oceanic trench"], answer: "Guyot", subject: "Geography" },
+            { id: "geo_25", question: "Which desert covers much of southern Mongolia/north China?", options: ["Taklamakan Desert", "Gobi Desert", "Thar Desert", "Kyzylkum Desert"], answer: "Gobi Desert", subject: "Geography" },
+            { id: "geo_26", question: "Which sea separates Greenland from Baffin Island, Canada?", options: ["Labrador Sea", "Beaufort Sea", "Baffin Bay", "Greenland Sea"], answer: "Baffin Bay", subject: "Geography" },
+            { id: "geo_27", question: "What imaginary line marks zero degrees of longitude value?", options: ["Equator", "Tropic of Capricorn", "International Date", "Prime Meridian"], answer: "Prime Meridian", subject: "Geography" },
+            { id: "geo_28", question: "What major river system flows through the Congo Basin?", options: ["Congo River", "Nile River", "Niger River", "Zambezi River"], answer: "Congo River", subject: "Geography" },
+            { id: "geo_29", question: "Which peninsula contains both Spain and Portugal nations?", options: ["Iberian Peninsula", "Balkan Peninsula", "Italian Peninsula", "Arabian Peninsula"], answer: "Iberian Peninsula", subject: "Geography" },
+            { id: "geo_30", question: "What type of climate features hot, dry summers & mild wet?", options: ["Humid Subtropical", "Semiarid Climate", "Mediterranean", "Marine West Coast"], answer: "Mediterranean", subject: "Geography" },
+            { id: "geo_31", question: "Which major river flows through Egypt to Mediterranean Sea?", options: ["Congo River", "Niger River", "Zambezi River", "Nile River"], answer: "Nile River", subject: "Geography" },
+            { id: "geo_32", question: "Which major mountain range runs through Morocco & Algeria?", options: ["Drakensberg Mts", "Ethiopian Highlands", "Atlas Mountains", "Hoggar Mountains"], answer: "Atlas Mountains", subject: "Geography" },
+            { id: "geo_33", question: "What is the largest lake situated entirely in Canada?", options: ["Great Bear Lake", "Great Slave Lake", "Lake Winnipeg", "Lake Athabasca"], answer: "Great Bear Lake", subject: "Geography" },
+            { id: "geo_34", question: "What famous fault line runs through the state California?", options: ["Hayward Fault", "San Andreas Fault", "Garlock Fault", "Alpine Fault"], answer: "San Andreas Fault", subject: "Geography" },
+            { id: "geo_35", question: "Which sea separates the continents of Africa and Asia?", options: ["Red Sea", "Mediterranean Sea", "Black Sea", "Arabian Sea"], answer: "Red Sea", subject: "Geography" },
+            { id: "geo_36", question: "What term describes an area drained by a river system?", options: ["Floodplain", "Estuary", "Watershed/Basin", "Delta"], answer: "Watershed/Basin", subject: "Geography" },
+            { id: "geo_37", question: "What huge bay indents the western coast of France deeply?", options: ["Bay of Bengal", "Hudson Bay", "Bay of Fundy", "Bay of Biscay"], answer: "Bay of Biscay", subject: "Geography" },
+            { id: "geo_38", question: "What is the name of the vast grassland in North America?", options: ["Great Plains", "Pampas", "Steppe", "Savanna"], answer: "Great Plains", subject: "Geography" },
+            { id: "geo_39", question: "Which sea lies between the Italian peninsula and Balkans?", options: ["Tyrrhenian Sea", "Adriatic Sea", "Ionian Sea", "Ligurian Sea"], answer: "Adriatic Sea", subject: "Geography" },
+            { id: "geo_40", question: "What type of forest biome has cold winters & conifers?", options: ["Temperate Forest", "Boreal Forest/Taiga", "Tundra", "Tropical Forest"], answer: "Boreal Forest/Taiga", subject: "Geography" },
+            { id: "geo_41", question: "Which huge South American rainforest has immense diversity?", options: ["Congo Rainforest", "Daintree Rainforest", "Amazon Rainforest", "Valdivian Forest"], answer: "Amazon Rainforest", subject: "Geography" },
+            { id: "geo_42", question: "Which country is known for its extensive fjord coastline?", options: ["Norway", "Chile", "New Zealand", "Iceland"], answer: "Norway", subject: "Geography" },
+            { id: "geo_43", question: "What type of cloud formations often bring steady rainfall?", options: ["Cirrus clouds", "Cumulus clouds", "Cumulonimbus", "Nimbostratus"], answer: "Nimbostratus", subject: "Geography" },
+            { id: "geo_44", question: "What huge desert dominates most of northern Africa now?", options: ["Sahara Desert", "Kalahari Desert", "Namib Desert", "Arabian Desert"], answer: "Sahara Desert", subject: "Geography" },
+            { id: "geo_45", question: "Which Asian country is composed of numerous islands(archipelago)?", options: ["Vietnam", "Thailand", "Cambodia", "Philippines"], answer: "Philippines", subject: "Geography" },
+            { id: "geo_46", question: "Which tectonic plate interaction forms the Andes Mountains?", options: ["Subduction zone", "Divergent boundary", "Transform fault", "Hotspot activity"], answer: "Subduction zone", subject: "Geography" },
+            { id: "geo_47", question: "What is the largest non-polar desert area in the Americas?", options: ["Great Basin Desert", "Mojave Desert", "Patagonian Desert", "Sonoran Desert"], answer: "Patagonian Desert", subject: "Geography" },
+            { id: "geo_48", question: "Which major Asian river flows eastward through China?", options: ["Mekong River", "Yangtze River", "Yellow River", "Indus River"], answer: "Yangtze River", subject: "Geography" },
+            { id: "geo_49", question: "What is the name for molten rock found beneath the surface?", options: ["Lava", "Sediment", "Tephra", "Magma"], answer: "Magma", subject: "Geography" },
+            { id: "geo_50", question: "What is the name for the line dividing day from night?", options: ["Equator", "Terminator", "Prime Meridian", "Tropic line"], answer: "Terminator", subject: "Geography" },
+            { id: "geo_51", question: "What large body of water lies east of Central America?", options: ["Caribbean Sea", "Gulf of Mexico", "Pacific Ocean", "Sargasso Sea"], answer: "Caribbean Sea", subject: "Geography" },
+            { id: "geo_52", question: "Which mountain range forms a spine down Italian peninsula?", options: ["Apennine Mountains", "Alps Mountains", "Carpathian Mts", "Pyrenees Mountains"], answer: "Apennine Mountains", subject: "Geography" },
+            { id: "geo_53", question: "What is the largest group of freshwater lakes on Earth?", options: ["The Great Lakes", "Lake Baikal", "African Great Lakes", "Rift Valley Lakes"], answer: "The Great Lakes", subject: "Geography" },
+            { id: "geo_54", question: "Which channel separates Great Britain from mainland Europe?", options: ["English Channel", "Mozambique Channel", "North Channel", "Saint George's Ch."], answer: "English Channel", subject: "Geography" },
+            { id: "geo_55", question: "What is the dominant climate type found around Indonesia?", options: ["Tropical rainforest", "Monsoon climate", "Tropical savanna", "Humid subtropical"], answer: "Tropical rainforest", subject: "Geography" },
+            { id: "geo_56", question: "Which island country is located southeast of Australia?", options: ["New Zealand", "Papua New Guinea", "Fiji", "Solomon Islands"], answer: "New Zealand", subject: "Geography" },
+            { id: "geo_57", question: "What geological feature is the Great Barrier Reef known as?", options: ["Coral reef system", "Volcanic archipelago", "Submarine trench", "Atoll formation"], answer: "Coral reef system", subject: "Geography" },
+            { id: "geo_58", question: "Which sea is almost completely enclosed by European land?", options: ["Mediterranean Sea", "North Sea", "Baltic Sea", "Black Sea"], answer: "Mediterranean Sea", subject: "Geography" },
+            { id: "geo_59", question: "What famous waterfall lies on the border of USA/Canada?", options: ["Niagara Falls", "Victoria Falls", "Iguazu Falls", "Angel Falls"], answer: "Niagara Falls", subject: "Geography" },
+            { id: "geo_60", question: "Which desert is known for its unique Joshua Trees species?", options: ["Mojave Desert", "Sonoran Desert", "Chihuahuan Desert", "Great Basin Desert"], answer: "Mojave Desert", subject: "Geography" },
+            { id: "geo_61", question: "What type of islands make up the state of Hawaii mostly?", options: ["Volcanic islands", "Coral islands", "Continental islands", "Barrier islands"], answer: "Volcanic islands", subject: "Geography" },
+            { id: "geo_62", question: "Which major river flows northward through Eastern Siberia?", options: ["Lena River", "Ob River", "Yenisei River", "Volga River"], answer: "Lena River", subject: "Geography" },
+            { id: "geo_63", question: "What bay is famously large, located north of Canada?", options: ["Hudson Bay", "Bay of Bengal", "Bay of Biscay", "Baffin Bay"], answer: "Hudson Bay", subject: "Geography" },
+            { id: "geo_64", question: "Which plateau covers a large portion of Southern India?", options: ["Deccan Plateau", "Tibetan Plateau", "Colorado Plateau", "Anatolian Plateau"], answer: "Deccan Plateau", subject: "Geography" },
+            { id: "geo_65", question: "What process causes the formation of desert pavement?", options: ["Wind erosion", "Water erosion", "Glacial abrasion", "Chemical weathering"], answer: "Wind erosion", subject: "Geography" },
+            { id: "geo_66", question: "Which islands lie between the North Atlantic & Arctic?", options: ["Greenland", "Iceland", "Svalbard", "Faroe Island"], answer: "Greenland", subject: "Geography" }, // Note: Greenland is a very large island.
+            { id: "geo_67", question: "Which large bay is situated between India and Myanmar?", options: ["Gulf of Aden", "Bay of Bengal", "Hudson Bay", "Bay of Biscay"], answer: "Bay of Bengal", subject: "Geography" },
+            { id: "geo_68", question: "What process describes rivers wearing away their banks?", options: ["Deposition", "Erosion", "Transportation", "Sedimentation"], answer: "Erosion", subject: "Geography" },
+            { id: "geo_69", question: "Which island group includes Majorca, Minorca and Ibiza?", options: ["Canary Islands", "Balearic Islands", "Azores", "Cyclades"], answer: "Balearic Islands", subject: "Geography" },
+            { id: "geo_70", question: "What landform is a large area of flat, elevated land?", options: ["Plain", "Plateau", "Basin", "Mesa"], answer: "Plateau", subject: "Geography" },
+            { id: "geo_71", question: "Which volcanic mountain overlooks the city of Tokyo?", options: ["Mount Aso", "Mount Fuji", "Mount Ontake", "Mount Unzen"], answer: "Mount Fuji", subject: "Geography" },
+            { id: "geo_72", question: "What imaginary line circles Earth at zero degrees latitude?", options: ["Tropic of Cancer", "Equator", "Prime Meridian", "Arctic Circle"], answer: "Equator", subject: "Geography" },
+            { id: "geo_73", question: "Which large island is split between three countries?", options: ["New Guinea", "Borneo", "Hispaniola", "Great Britain"], answer: "Borneo", subject: "Geography" },
+            { id: "geo_74", question: "What huge ice mass covers most of the island Greenland?", options: ["Ice cap", "Ice sheet", "Glacier", "Ice shelf"], answer: "Ice sheet", subject: "Geography" },
+            { id: "geo_75", question: "Which strait separates Australia from the island Tasmania?", options: ["Torres Strait", "Bass Strait", "Cook Strait", "Sunda Strait"], answer: "Bass Strait", subject: "Geography" },
+            { id: "geo_76", question: "What type of wind pattern reverses direction seasonally?", options: ["Trade Winds", "Monsoon Winds", "Polar Easterlies", "Westerlies"], answer: "Monsoon Winds", subject: "Geography" },
+            { id: "geo_77", question: "Which country contains the vast, sparsely populated Siberia?", options: ["Kazakhstan", "Russia", "Mongolia", "China"], answer: "Russia", subject: "Geography" },
+            { id: "geo_78", question: "What triangular landform forms at a river's mouth often?", options: ["Alluvial Fan", "Delta", "Estuary", "Spit"], answer: "Delta", subject: "Geography" },
+            { id: "geo_79", question: "Which is the shallowest of the world's five oceans now?", options: ["Pacific Ocean", "Arctic Ocean", "Indian Ocean", "Southern Ocean"], answer: "Arctic Ocean", subject: "Geography" },
+            { id: "geo_80", question: "What type of map specifically shows land elevation/shape?", options: ["Political Map", "Topographic Map", "Thematic Map", "Climate Map"], answer: "Topographic Map", subject: "Geography" },
+            { id: "geo_81", question: "Which chain of volcanoes surrounds the Pacific Ocean rim?", options: ["Mid-Atlantic Ridge", "Ring of Fire", "Alpine Belt", "Island Arc Chain"], answer: "Ring of Fire", subject: "Geography" },
+            { id: "geo_82", question: "What German forest region is known for its dense evergreens?", options: ["Bavarian Forest", "Black Forest", "Palatinate Forest", "Thuringian Forest"], answer: "Black Forest", subject: "Geography" },
+            { id: "geo_83", question: "What is the point on Earth's surface above an earthquake?", options: ["Focus", "Epicenter", "Fault line", "Seismic center"], answer: "Epicenter", subject: "Geography" },
+            { id: "geo_84", question: "Which peninsula includes countries like Vietnam & Thailand?", options: ["Malay Peninsula", "Indochinese Penin.", "Korean Peninsula", "Arabian Peninsula"], answer: "Indochinese Penin.", subject: "Geography" },
+            { id: "geo_85", question: "Which group of islands constitutes the state of Alaska?", options: ["Hawaiian Islands", "Florida Keys", "Aleutian Islands", "Channel Islands"], answer: "Aleutian Islands", subject: "Geography" },
+            { id: "geo_86", question: "What body of water separates Saudi Arabia from Iran now?", options: ["Red Sea", "Gulf of Aden", "Persian Gulf", "Gulf of Oman"], answer: "Persian Gulf", subject: "Geography" },
+            { id: "geo_87", question: "Which large saltwater lake lies between Europe and Asia?", options: ["Lake Baikal", "Aral Sea", "Caspian Sea", "Dead Sea"], answer: "Caspian Sea", subject: "Geography" },
+            { id: "geo_88", question: "What is the prevailing wind system found in the tropics?", options: ["Westerlies", "Polar Easterlies", "Trade Winds", "Doldrums"], answer: "Trade Winds", subject: "Geography" },
+            { id: "geo_89", question: "Which Canadian province is known for its Rocky Mountains?", options: ["Ontario", "Quebec", "Alberta", "Manitoba"], answer: "Alberta", subject: "Geography" },
+            { id: "geo_90", question: "What term is used for the gradual wearing away of land?", options: ["Aggradation", "Weathering", "Erosion", "Deposition"], answer: "Erosion", subject: "Geography" },
+            { id: "geo_91", question: "Which major African river flows north into Mediterranean?", options: ["Congo River", "Zambezi River", "Nile River", "Niger River"], answer: "Nile River", subject: "Geography" },
+            { id: "geo_92", question: "What is the largest sand island found in the entire world?", options: ["Moreton Island", "North Stradbroke Is", "Fraser Island", "Bribie Island"], answer: "Fraser Island", subject: "Geography" },
+            { id: "geo_93", question: "Which Central American country connects N & S America?", options: ["Costa Rica", "Nicaragua", "Panama", "Honduras"], answer: "Panama", subject: "Geography" },
+            { id: "geo_94", question: "What is the highest navigable lake known in the world?", options: ["Lake Tahoe", "Crater Lake", "Lake Titicaca", "Great Salt Lake"], answer: "Lake Titicaca", subject: "Geography" },
+            { id: "geo_95", question: "Which archipelago is located off the coast of Ecuador?", options: ["Falkland Islands", "Tierra del Fuego", "Galapagos Islands", "Juan Fernandez Is."], answer: "Galapagos Islands", subject: "Geography" },
+            { id: "geo_96", question: "What extensive grassland region covers parts of Argentina?", options: ["Llanos", "Cerrado", "The Pampas", "Gran Chaco"], answer: "The Pampas", subject: "Geography" },
+            { id: "geo_97", question: "Which tectonic plate covers most of the Indian Ocean?", options: ["Pacific Plate", "Eurasian Plate", "Indo-Australian", "African Plate"], answer: "Indo-Australian", subject: "Geography" },
+            { id: "geo_98", question: "What landform is a piece of land surrounded by water?", options: ["Peninsula", "Cape", "Island", "Isthmus"], answer: "Island", subject: "Geography" },
+            { id: "geo_99", question: "Which large island nation is located east of Mozambique?", options: ["Comoros", "Seychelles", "Madagascar", "Mauritius"], answer: "Madagascar", subject: "Geography" },
+            { id: "geo_100", question: "What is the name for a slow-moving river of ice called?", options: ["Iceberg", "Ice Sheet", "Glacier", "Ice Floe"], answer: "Glacier", subject: "Geography" },
+            { id: "geo_101", question: "What body of water lies south of the island of Cuba?", options: ["Gulf of Mexico", "Atlantic Ocean", "Caribbean Sea", "Sargasso Sea"], answer: "Caribbean Sea", subject: "Geography" },
+            { id: "geo_102", question: "Which large sea separates Italy from Greece to the east?", options: ["Adriatic Sea", "Tyrrhenian Sea", "Ligurian Sea", "Ionian Sea"], answer: "Ionian Sea", subject: "Geography" },
+            { id: "geo_103", question: "What is the largest hot desert found in the world today?", options: ["Gobi Desert", "Kalahari Desert", "Arabian Desert", "Sahara Desert"], answer: "Sahara Desert", subject: "Geography" },
+            { id: "geo_104", question: "Which of the Great Lakes borders the state of Minnesota?", options: ["Lake Michigan", "Lake Huron", "Lake Erie", "Lake Superior"], answer: "Lake Superior", subject: "Geography" },
+            { id: "geo_105", question: "What geographical feature is a narrow waterway connecting seas?", options: ["Isthmus", "Peninsula", "Archipelago", "Strait"], answer: "Strait", subject: "Geography" },
+            { id: "geo_106", question: "Which European country is known for windmills and tulips?", options: ["Belgium", "Denmark", "Germany", "Netherlands"], answer: "Netherlands", subject: "Geography" },
+            { id: "geo_107", question: "What line marks the northernmost point of direct sunlight?", options: ["Antarctic Circle", "Equator", "Arctic Circle", "Tropic of Cancer"], answer: "Tropic of Cancer", subject: "Geography" },
+            { id: "geo_108", question: "Which tectonic plate lies beneath most Pacific Ocean water?", options: ["Nazca Plate", "North American Plate", "Eurasian Plate", "Pacific Plate"], answer: "Pacific Plate", subject: "Geography" },
+            { id: "geo_109", question: "What is the term for the height above average sea level?", options: ["Latitude", "Longitude", "Topography", "Elevation"], answer: "Elevation", subject: "Geography" },
+            { id: "geo_110", question: "Which continent is known for being the driest inhabited?", options: ["South America", "Africa", "Europe", "Australia"], answer: "Australia", subject: "Geography" },
+            { id: "geo_111", question: "What underwater feature is the deepest part of the ocean?", options: ["Abyssal Plain", "Continental Shelf", "Seamount", "Oceanic Trench"], answer: "Oceanic Trench", subject: "Geography" },
+            { id: "geo_112", question: "Which mountain range divides Spain from France to north?", options: ["Alps", "Apennines", "Carpathian Mts", "Pyrenees"], answer: "Pyrenees", subject: "Geography" },
+            { id: "geo_113", question: "What large body of water borders northern Russia mostly?", options: ["Baltic Sea", "Black Sea", "Caspian Sea", "Arctic Ocean"], answer: "Arctic Ocean", subject: "Geography" },
+            { id: "geo_114", question: "Which country famously contains the Serengeti plains area?", options: ["Kenya", "Uganda", "Ethiopia", "Tanzania"], answer: "Tanzania", subject: "Geography" },
+            { id: "geo_115", question: "What is the process where water vapor turns into liquid?", options: ["Evaporation", "Transpiration", "Sublimation", "Condensation"], answer: "Condensation", subject: "Geography" },
+            { id: "geo_116", question: "Which sea contains the island known formerly as Ceylon?", options: ["Arabian Sea", "Red Sea", "Bay of Bengal", "Laccadive Sea"], answer: "Laccadive Sea", subject: "Geography" },
+            { id: "geo_117", question: "What is the largest coral reef system found in the world?", options: ["Belize Barrier Reef", "Red Sea Coral Reef", "New Caledonia Reef", "Great Barrier Reef"], answer: "Great Barrier Reef", subject: "Geography" },
+            { id: "geo_118", question: "Which major river is vital to the country of Vietnam?", options: ["Irrawaddy River", "Salween River", "Chao Phraya River", "Mekong River"], answer: "Mekong River", subject: "Geography" },
+            { id: "geo_119", question: "What type of large, rotating storm forms over warm oceans?", options: ["Tornado", "Blizzard", "Dust Devil", "Hurricane/Typhoon"], answer: "Hurricane/Typhoon", subject: "Geography" },
+            { id: "geo_120", question: "Which is the southernmost continent on the planet Earth?", options: ["Australia", "South America", "Africa", "Antarctica"], answer: "Antarctica", subject: "Geography" }
+        ];
+
+        // DOM Elements
+        const screens = {
+            welcome: document.getElementById('welcome-screen'),
+            quiz: document.getElementById('quiz-screen'),
+            results: document.getElementById('results-screen')
+        };
+
+        const startQuizButton = document.getElementById('startQuizButton');
+        const resetSeenButton = document.getElementById('resetSeenButton');
+        
+        const numQuestionsInput = document.getElementById('numQuestions');
+        const pointsPerQuestionInput = document.getElementById('pointsPerQuestion');
+        const maxQuestionsAvailableSpan = document.getElementById('maxQuestionsAvailable');
+        const unseenQuestionInfo = document.getElementById('unseenQuestionInfo');
+
+
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const questionProgressDisplay = document.getElementById('questionProgressDisplay');
+        const overallProgressBar = document.getElementById('overallProgressBar');
+        const questionTimerDisplay = document.getElementById('questionTimerDisplay');
+        const questionText = document.getElementById('questionText');
+        const optionsContainer = document.getElementById('optionsContainer');
+        const feedbackMessage = document.getElementById('feedbackMessage');
+        const nextQuestionButton = document.getElementById('nextQuestionButton');
+
+        const resultsTitle = document.getElementById('resultsTitle');
+        const finalScoreDisplay = document.getElementById('finalScoreDisplay');
+        const totalPossibleScoreDisplay = document.getElementById('totalPossibleScoreDisplay');
+        const accuracyDisplay = document.getElementById('accuracyDisplay');
+        const correctAnswersDisplay = document.getElementById('correctAnswersDisplay');
+        const totalQuestionsInQuizDisplay = document.getElementById('totalQuestionsInQuizDisplay');
+        const playAgainButton = document.getElementById('playAgainButton');
+        const changeSettingsButton = document.getElementById('changeSettingsButton');
+
+        // App State
+        let masterQuestionList = []; // Populated from preloadedQuizData
+        let seenQuestionIDsForSubject = {}; // Using an object to hold Set for "Geography"
+        const FIXED_SUBJECT = "Geography"; // Only one subject now
+
+        let currentQuizSettings = {
+            subject: FIXED_SUBJECT, // Hardcoded
+            timePerQuestion: 5000, // ms
+            numQuestions: 10,
+            pointsPerQuestion: 10
+        };
+
+        let quizEngineState = {
+            questionsForQuiz: [],
+            currentQuestionIndex: 0,
+            score: 0,
+            timerInterval: null,
+            timeLeft: 0,
+            answered: false,
+            correctAnswersCount: 0
+        };
+
+        // --- Utility Functions ---
+        function showScreen(screenId) {
+            Object.values(screens).forEach(screen => screen.classList.remove('active'));
+            screens[screenId].classList.add('active');
+            anime({
+                targets: screens[screenId],
+                opacity: [0, 1],
+                translateY: [20, 0],
+                duration: 500,
+                easing: 'easeOutQuad'
+            });
+        }
+
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        // --- Data Initialization & Seen Question Management ---
+        function initializeQuizData() {
+            masterQuestionList = preloadedQuizData.map(q => ({ ...q })); // Create a copy to work with
+            // Ensure IDs are unique if not already provided, or use provided ones
+            // The provided data already has unique IDs like "geo_1"
+            
+            // Initialize seen set for the fixed subject
+            if (!seenQuestionIDsForSubject[FIXED_SUBJECT]) {
+                seenQuestionIDsForSubject[FIXED_SUBJECT] = new Set();
+            }
+            
+            numQuestionsInput.max = masterQuestionList.length;
+            maxQuestionsAvailableSpan.textContent = masterQuestionList.length;
+            updateUnseenQuestionInfo();
+        }
+        
+        function updateUnseenQuestionInfo() {
+            const totalForSubject = masterQuestionList.filter(q => q.subject === FIXED_SUBJECT).length;
+            const seenCount = seenQuestionIDsForSubject[FIXED_SUBJECT] ? seenQuestionIDsForSubject[FIXED_SUBJECT].size : 0;
+            const unseenCount = totalForSubject - seenCount;
+            unseenQuestionInfo.textContent = `Unseen Geography Questions: ${unseenCount} / ${totalForSubject}`;
+            if (unseenCount === 0 && totalForSubject > 0) {
+                resetSeenButton.classList.remove('hidden');
+            } else {
+                resetSeenButton.classList.add('hidden');
+            }
+        }
+
+        resetSeenButton.addEventListener('click', () => {
+            if (confirm("Are you sure you want to reset all seen questions for Geography? You'll start seeing them again.")) {
+                if (seenQuestionIDsForSubject[FIXED_SUBJECT]) {
+                    seenQuestionIDsForSubject[FIXED_SUBJECT].clear();
+                }
+                updateUnseenQuestionInfo();
+                alert("Seen questions for Geography have been reset.");
+            }
+        });
+
+
+        // --- Quiz Setup ---
+        startQuizButton.addEventListener('click', setupAndStartQuiz);
+
+        function setupAndStartQuiz() {
+            currentQuizSettings.timePerQuestion = parseInt(document.querySelector('input[name="timeDuration"]:checked').value);
+            currentQuizSettings.numQuestions = parseInt(numQuestionsInput.value);
+            currentQuizSettings.pointsPerQuestion = parseInt(pointsPerQuestionInput.value);
+            currentQuizSettings.subject = FIXED_SUBJECT; // Ensure it's always Geography
+
+
+            const allQuestionsForSubject = masterQuestionList.filter(q => q.subject === currentQuizSettings.subject);
+            
+            let unseenQuestionsForSubject = allQuestionsForSubject.filter(
+                q => !seenQuestionIDsForSubject[currentQuizSettings.subject].has(q.id)
+            );
+
+            let effectiveNumQuestions = currentQuizSettings.numQuestions;
+
+            if (unseenQuestionsForSubject.length === 0 && allQuestionsForSubject.length > 0) {
+                // All questions for the subject have been seen
+                if (confirm("You've seen all Geography questions in this session! Do you want to play them again? (Seen status will be reset for this round only for selection purposes)")) {
+                    // Temporarily allow selection from all questions for this round
+                    // We won't clear the main `seenQuestionIDsForSubject` here,
+                    // as that's the role of the explicit reset button.
+                    // This is just for making a selection for *this* quiz attempt.
+                    unseenQuestionsForSubject = [...allQuestionsForSubject]; 
+                } else {
+                    // User chose not to repeat, so don't start quiz
+                    updateUnseenQuestionInfo(); // Show the reset button if it's not visible
+                    return; 
+                }
+            }
+            
+            if (unseenQuestionsForSubject.length < effectiveNumQuestions) {
+                console.warn(`Requested ${effectiveNumQuestions} questions, but only ${unseenQuestionsForSubject.length} unseen available. Using available questions.`);
+                effectiveNumQuestions = unseenQuestionsForSubject.length; 
+            }
+
+            if (effectiveNumQuestions === 0) {
+                 alert(`No more new questions available for ${currentQuizSettings.subject} at this time. Try resetting seen questions if available.`);
+                 updateUnseenQuestionInfo();
+                 return;
+            }
+            
+            quizEngineState.questionsForQuiz = shuffleArray([...unseenQuestionsForSubject]).slice(0, effectiveNumQuestions);
+            
+            // Mark chosen questions as seen FOR THIS SUBJECT
+            quizEngineState.questionsForQuiz.forEach(q => {
+                seenQuestionIDsForSubject[currentQuizSettings.subject].add(q.id);
+            });
+            updateUnseenQuestionInfo(); // Update count after marking them
+
+            quizEngineState.currentQuestionIndex = 0;
+            quizEngineState.score = 0;
+            quizEngineState.correctAnswersCount = 0;
+            quizEngineState.answered = false;
+
+            updateScoreDisplay();
+            showScreen('quiz');
+            loadNextQuestion();
+        }
+        
+        // --- Quiz Gameplay ---
+        function loadNextQuestion() {
+            if (quizEngineState.currentQuestionIndex >= quizEngineState.questionsForQuiz.length) {
+                endQuiz();
+                return;
+            }
+
+            quizEngineState.answered = false;
+            const currentQ = quizEngineState.questionsForQuiz[quizEngineState.currentQuestionIndex];
+            
+            questionText.textContent = currentQ.question;
+            anime({ 
+                targets: questionText,
+                opacity: [0, 1],
+                translateY: [-20, 0],
+                duration: 600,
+                easing: 'easeOutExpo'
+            });
+
+            optionsContainer.innerHTML = '';
+             // Check number of options to adjust grid if necessary (e.g., for 4 options)
+            if (currentQ.options.length === 4) {
+                optionsContainer.classList.add('four-options');
+            } else {
+                optionsContainer.classList.remove('four-options');
+            }
+
+            const shuffledOptions = shuffleArray([...currentQ.options]);
+            shuffledOptions.forEach(optionText => {
+                const button = document.createElement('button');
+                button.classList.add('option-button');
+                button.textContent = optionText;
+                button.addEventListener('click', () => handleOptionClick(optionText, button, currentQ.answer));
+                optionsContainer.appendChild(button);
+            });
+            
+            anime({
+                targets: '.option-button',
+                opacity: [0,1],
+                translateY: [20, 0],
+                delay: anime.stagger(100, {start: 300}),
+                duration: 500,
+                easing: 'easeOutExpo'
+            });
+
+            feedbackMessage.textContent = '';
+            nextQuestionButton.classList.add('hidden');
+            updateQuizProgressDisplay();
+            startQuestionTimer();
+        }
+
+        function handleOptionClick(selectedOption, selectedButton, correctAnswer) {
+            if (quizEngineState.answered) return;
+            quizEngineState.answered = true;
+            clearInterval(quizEngineState.timerInterval);
+            // Stop timer animation if active
+            anime.remove(questionTimerDisplay); // Remove any ongoing animations on the timer
+            questionTimerDisplay.style.transform = 'scale(1)'; // Reset scale
+
+
+            const isCorrect = selectedOption === correctAnswer;
+            
+            if (isCorrect) {
+                quizEngineState.score += currentQuizSettings.pointsPerQuestion;
+                quizEngineState.correctAnswersCount++;
+                feedbackMessage.textContent = "Correct! ✨";
+                feedbackMessage.style.color = 'var(--correct-color)';
+                selectedButton.classList.add('correct');
+                anime({ targets: selectedButton, scale: [1, 1.1, 1], duration: 500, easing: 'easeInOutQuad'});
+            } else {
+                feedbackMessage.textContent = `Oops! The correct answer was: ${correctAnswer}`;
+                feedbackMessage.style.color = 'var(--incorrect-color)';
+                selectedButton.classList.add('incorrect');
+                anime({ targets: selectedButton, translateX: [{value: -5}, {value: 5}, {value: -5}, {value: 0}], duration: 300, easing: 'easeInOutSine'});
+            }
+            updateScoreDisplay();
+
+            Array.from(optionsContainer.children).forEach(btn => {
+                btn.disabled = true;
+                if (btn.textContent === correctAnswer) {
+                    btn.classList.add('correct'); 
+                }
+                if (btn !== selectedButton && btn.textContent !== correctAnswer) {
+                    anime({ targets: btn, opacity: 0.6, duration: 300 });
+                }
+            });
+
+            nextQuestionButton.classList.remove('hidden');
+            anime({ targets: nextQuestionButton, opacity: [0,1], scale: [0.8, 1], duration: 400, easing: 'easeOutBack', delay: 200});
+        }
+
+        nextQuestionButton.addEventListener('click', () => {
+            quizEngineState.currentQuestionIndex++;
+            loadNextQuestion();
+        });
+
+        let timerPulseAnimation = null;
+        function startQuestionTimer() {
+            quizEngineState.timeLeft = currentQuizSettings.timePerQuestion / 1000;
+            questionTimerDisplay.textContent = formatTime(quizEngineState.timeLeft);
+            questionTimerDisplay.style.color = 'var(--primary-color)'; // Reset color
+            
+            if (timerPulseAnimation) timerPulseAnimation.pause(); // Pause previous if any
+            timerPulseAnimation = anime({
+                targets: questionTimerDisplay,
+                scale: [1, 1.15, 1],
+                duration: 1000,
+                easing: 'easeInOutSine',
+                loop: true
+            });
+
+            quizEngineState.timerInterval = setInterval(() => {
+                quizEngineState.timeLeft--;
+                questionTimerDisplay.textContent = formatTime(quizEngineState.timeLeft);
+                if (quizEngineState.timeLeft <= 0) {
+                    clearInterval(quizEngineState.timerInterval);
+                    if (timerPulseAnimation) timerPulseAnimation.pause();
+                    questionTimerDisplay.style.transform = 'scale(1)'; // Reset scale
+                    questionTimerDisplay.textContent = "00:00";
+                    timeUp();
+                }
+                if (quizEngineState.timeLeft <= Math.floor((currentQuizSettings.timePerQuestion / 1000) * 0.3)) { 
+                    questionTimerDisplay.style.color = 'var(--incorrect-color)';
+                } else {
+                    questionTimerDisplay.style.color = 'var(--primary-color)';
+                }
+            }, 1000);
+        }
+
+        function timeUp() {
+            if (quizEngineState.answered) return; 
+            quizEngineState.answered = true;
+            feedbackMessage.textContent = `Time's up! The correct answer was: ${quizEngineState.questionsForQuiz[quizEngineState.currentQuestionIndex].answer}`;
+            feedbackMessage.style.color = 'var(--incorrect-color)';
+            
+            Array.from(optionsContainer.children).forEach(btn => {
+                btn.disabled = true;
+                if (btn.textContent === quizEngineState.questionsForQuiz[quizEngineState.currentQuestionIndex].answer) {
+                    btn.classList.add('correct');
+                } else {
+                     anime({ targets: btn, opacity: 0.6, duration: 300 });
+                }
+            });
+            
+            nextQuestionButton.classList.remove('hidden');
+            anime({ targets: nextQuestionButton, opacity: [0,1], scale: [0.8, 1], duration: 400, easing: 'easeOutBack'});
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+        
+        function updateScoreDisplay() {
+            scoreDisplay.textContent = `Score: ${quizEngineState.score}`;
+            anime({
+                targets: scoreDisplay,
+                innerHTML: [parseInt(scoreDisplay.textContent.split(':')[1]) || 0, quizEngineState.score],
+                round: 1,
+                duration: 500,
+                easing: 'easeOutExpo'
+            });
+        }
+
+        function updateQuizProgressDisplay() {
+            const current = quizEngineState.currentQuestionIndex + 1;
+            const total = quizEngineState.questionsForQuiz.length;
+            questionProgressDisplay.textContent = `Q: ${current}/${total}`;
+            overallProgressBar.style.width = `${(current / total) * 100}%`;
+        }
+
+        // --- Quiz End & Results ---
+        function endQuiz() {
+            clearInterval(quizEngineState.timerInterval);
+            if (timerPulseAnimation) timerPulseAnimation.pause();
+            questionTimerDisplay.style.transform = 'scale(1)';
+            showScreen('results');
+
+            const totalPossible = quizEngineState.questionsForQuiz.length * currentQuizSettings.pointsPerQuestion;
+            const accuracy = totalPossible > 0 ? Math.round((quizEngineState.score / totalPossible) * 100) : 0;
+
+            anime({ targets: finalScoreDisplay, innerHTML: [0, quizEngineState.score], round: 1, duration: 1000, easing: 'easeOutExpo' });
+            anime({ targets: totalPossibleScoreDisplay, innerHTML: [0, totalPossible], round: 1, duration: 1000, easing: 'easeOutExpo', delay: 200 });
+            anime({ targets: accuracyDisplay, innerHTML: [0, accuracy], round: 1, duration: 1000, easing: 'easeOutExpo', delay: 400,
+                update: function(anim) { accuracyDisplay.textContent = anim.animations[0].currentValue + "%"; }
+            });
+            anime({ targets: correctAnswersDisplay, innerHTML: [0, quizEngineState.correctAnswersCount], round: 1, duration: 1000, easing: 'easeOutExpo', delay: 600 });
+            
+            totalQuestionsInQuizDisplay.textContent = quizEngineState.questionsForQuiz.length;
+
+            if (accuracy > 75) {
+                resultsTitle.textContent = "Excellent Explorer!";
+                createConfetti();
+            } else if (accuracy > 50) {
+                resultsTitle.textContent = "Good Navigator!";
+            } else {
+                resultsTitle.textContent = "Map Reading Practice!";
+            }
+            updateUnseenQuestionInfo(); // Refresh info on results screen as well
+        }
+        
+        function createConfetti() { 
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.style.position = 'absolute';
+                confetti.style.width = Math.random() * 10 + 5 + 'px';
+                confetti.style.height = confetti.style.width;
+                confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 70%)`;
+                confetti.style.opacity = '0'; 
+                screens.results.appendChild(confetti); 
+
+                anime({
+                    targets: confetti,
+                    left: Math.random() * screens.results.offsetWidth + 'px',
+                    top: [Math.random() * -100 - 50 + 'px', screens.results.offsetHeight + 50 + 'px'],
+                    rotate: { value: '1turn', duration: Math.random()*2000+1000 },
+                    opacity: [1, 0], 
+                    duration: Math.random() * 2000 + 2000,
+                    easing: 'linear',
+                    delay: Math.random() * 500,
+                    complete: () => confetti.remove()
+                });
+            }
+        }
+
+        playAgainButton.addEventListener('click', () => {
+            setupAndStartQuiz();
+        });
+
+        changeSettingsButton.addEventListener('click', () => {
+            showScreen('welcome');
+            updateUnseenQuestionInfo(); // Update info when returning to welcome
+        });
+
+        // --- Initial Setup ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeQuizData();
+            showScreen('welcome');
+            const primaryRgb = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').match(/\d+/g);
+            if (primaryRgb) {
+                document.documentElement.style.setProperty('--primary-color-rgb', `${primaryRgb[0]},${primaryRgb[1]},${primaryRgb[2]}`);
+            }
+        });
+
+    </script>
+</body>
+</html>
